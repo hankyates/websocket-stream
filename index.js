@@ -47,7 +47,7 @@ let selectSequence = get('sequence')
 
 let ticker$ = createStream('ticker').pipe(map(selectPrice))
 let heartbeat$ = createStream('heartbeat').pipe(map(selectSequence))
-let xAxis = rxjs.interval()
+let xAxis = rxjs.interval(1000)
 const BUFFER_SIZE = 10
 let last = n => a => a.slice(Math.max(0, a.length - n - 1), a.length)
 let latestBuffer = last(BUFFER_SIZE)
@@ -66,6 +66,7 @@ let createTrapezoidal = n => f => f.reduce((acc, val, i, f) => {
   )
 }, 0)
 let trapezoidal = createTrapezoidal(BUFFER_SIZE)
+ticker$.subscribe(v => console.log('price', v))
 
 let fOfX$ = ticker$.pipe(
   withLatestFrom(xAxis),
