@@ -1,10 +1,20 @@
+let {
+  get,
+  pipe,
+} = _
+
+let {
+  filter,
+  map,
+  scan,
+  tap,
+  withLatestFrom,
+} = rxjs.operators
+
 let url = 'wss://ws-feed.pro.coinbase.com'
-//let url = 'wss://ws.cex.io/ws/'
-//let url = 'wss://ws.coinapi.io/v1/'
-//let url = 'wss://echo.websocket.org'
 
 ws$ = rxjs.webSocket.webSocket(url)
-let data = {
+ws$.next({
   "type": "subscribe",
   "product_ids": [
     "ETH-USD",
@@ -18,21 +28,29 @@ let data = {
       ]
     }
   ]
-}
+})
 
-let heartbeat$ = ws$.pipe(
-  rxjs.operators.filter(v => v.type === 'heartbeat')
-)
+const BUFFER_SIZE = 10
+
+let xAxis = rxjs.interval()
+let selectPrice = pipe(get('price'), parseFloat)
+
+// buffer: number => number
+let trapezoidal = arr => arr.reduce((acc, val, i) => {
+  if (i === arr.length - 1) return acc
+  let fx = arr[i][0]
+  let fxNext = arr[i+1][0]
+  let x = arr[i][1]
+  let xNext = arr[i+1][1]
+  return ((fx + fxNext) / 2) * (xNext - x)
+}, 0)
 
 let ticker$ = ws$.pipe(
-  rxjs.operators.filter(v => v.type === 'ticker')
-)
-
-ws$.next(data)
-
-heartbeat$.subscribe(
-  console.log,
-  console.error,
+  filter(v => v.type === 'ticker'),
+  map(selectPrice),
+  withLatestFrom(xAxis),
+  scan((acc, val) => [...acc.slice(Math.max(0, acc.length - BUFFER_SIZE + 1), acc.length), val], []),
+  map(trapezoidal)
 )
 
 ticker$.subscribe(
