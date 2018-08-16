@@ -42,15 +42,20 @@ let filterByMinute = _.filter(createWindow(60))
 let filterByFiveMinutes = _.filter(createWindow(60 * 5))
 let filterByTenMinutes = _.filter(createWindow(60 * 10))
 let selectPrice = pipe(get('price'), parseFloat)
+let filterBy = seconds => ([price, timestamp]) => (Date.now() - (seconds * 1000)) < timestamp
+let filterByTen = _.filter(filterBy(10))
+let filterByThirty = _.filter(filterBy(30))
+let filterBySixty = _.filter(filterBy(60))
+let filterByOneTwenty = _.filter(filterBy(120))
 
-// buffer: number => number
 let trapezoidal = arr => arr.reduce((acc, val, i) => {
   if (i === arr.length - 1) return acc
-  let fx = arr[i][0]
-  let fxNext = arr[i+1][0]
-  let x = arr[i][1]
-  let xNext = arr[i+1][1]
-  return ((fx + fxNext) / 2) * (xNext - x)
+  let ay = arr[i][0]
+  let ax = arr[i][1]
+  let by = arr[i+1][0]
+  let bx = arr[i+1][1]
+  let h = bx - ax
+  return acc + ((ay + by) / 2) * h
 }, 0)
 
 let createStreamWindow = windowFilter => ws$.pipe(
