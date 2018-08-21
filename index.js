@@ -5,6 +5,7 @@ let {
 
 let {
   concatMap,
+  throttleTime,
   filter,
   map,
   scan,
@@ -86,7 +87,74 @@ let integral$ = rxjs.zip(
   )
 )
 
-integral$.subscribe(
-  console.log,
-  console.error,
+//integral$.subscribe(
+  //console.log,
+  //console.error,
+//)
+
+
+
+halfMin$
+//rxjs.of([[100, 0], [100, 1], [101, 2]])
+.pipe(
+  throttleTime(1000),
+  map((v) => v
+    .map(
+      ([y, x]) => [y, x - v[0][1]],
+    )
+  ),
 )
+.subscribe((v) => {
+  console.group()
+  let m = tf.variable(tf.scalar(Math.random()))
+  let b = tf.variable(tf.scalar(Math.random()))
+
+  let optimizer = tf.train.adam(100, 0.9, 0.99)
+  let predict = x => tf.tidy(() => m.mul(x).add(b))
+  let loss = (predictions, labels) => predictions.sub(labels).square().mean()
+
+  let time = window.performance.now()
+  let iterations = Math.ceil(Math.log(v.length ** 500))
+  for (var i = 0; i < iterations; i++) {
+    var w = optimizer.minimize(() => {
+      let predY = predict(tf.tensor1d(v.map(([y, x]) => x)))
+      let error = loss(
+        predY,
+        tf.tensor1d(v.map(([y, x]) => y))
+      )
+      console.log(
+        'optimize',
+        //m.dataSync()[0],
+        //b.dataSync()[0],
+        error.dataSync()[0],
+        //predY.dataSync(),
+        //v,
+      )
+      return error
+    })
+  }
+  let modelM = m.dataSync()[0]
+  let modelB = b.dataSync()[0]
+  console.log('time', window.performance.now() - time)
+  let predY = (modelM * v[v.length-1][1] + modelB)
+  let actualY = v[v.length-1][0]
+  console.log('pred', predY)
+  console.log('actual', actualY)
+  console.log('length', v.length)
+  console.log('iterations', iterations)
+  console.log('error', predY - actualY)
+  new Chartist.Line('.regressions', {
+    series: [
+      [
+        modelM * v[0][1] + modelB,
+        modelM * v[v.length-1][1] + modelB,
+      ]
+    ]
+  }, {fullWidth: true})
+  new Chartist.Line('.price', {
+    series: [
+      v.map(([price]) => price)
+    ]
+  }, {fullWidth: true})
+  console.groupEnd()
+})
