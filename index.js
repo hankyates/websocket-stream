@@ -4,6 +4,7 @@ let {
 } = _
 
 let {
+  throttleTime,
   concatMap,
   filter,
   map,
@@ -36,11 +37,6 @@ let x$ = rxjs.interval().pipe(
   map(Date.now),
 )
 let createWindow = seconds => ([price, timestamp]) =>  (Date.now() - (seconds * 1000)) < timestamp
-let filterByTenSeconds = _.filter(createWindow(10))
-let filterByHalfMinute = _.filter(createWindow(30))
-let filterByMinute = _.filter(createWindow(60))
-let filterByFiveMinutes = _.filter(createWindow(60 * 5))
-let filterByTenMinutes = _.filter(createWindow(60 * 10))
 let selectPrice = pipe(get('price'), parseFloat)
 let filterBy = seconds => ([price, timestamp]) => (Date.now() - (seconds * 1000)) < timestamp
 let filterByTen = _.filter(filterBy(10))
@@ -68,25 +64,58 @@ let createStreamWindow = windowFilter => ws$.pipe(
   ], []),
 )
 
-let tenSec$ = createStreamWindow(filterByTenSeconds)
-let halfMin$ = createStreamWindow(filterByHalfMinute)
-let min$ = createStreamWindow(filterByMinute)
-let fiveMin$ = createStreamWindow(filterByFiveMinutes)
-let tenMin$ = createStreamWindow(filterByTenMinutes)
+let tenSec$ = createStreamWindow(filterByTen)
+let thirtySec$ = createStreamWindow(filterByThirty)
 
 let integral$ = rxjs.zip(
   tenSec$,
-  halfMin$,
-  min$,
-  fiveMin$,
-  tenMin$,
+  thirtySec$,
 ).pipe(
-  map(
-    arr => [arr.map(a => a[0][0]), arr.map(trapezoidal)]
-  )
+  tap(console.log)
 )
 
-integral$.subscribe(
-  console.log,
-  console.error,
+//integral$.subscribe(
+  //console.log,
+  //console.error,
+//)
+
+
+
+//rxjs.of([[100, 0], [100, 1], [101, 2]])
+//tenSec$
+thirtySec$
+.pipe(
+  throttleTime(1000),
+  map(v => v.map(
+    ([y, x]) => [y, x - v[0][1]]
+  ))
 )
+.subscribe((v) => {
+  console.group()
+  const m = tf.variable(tf.scalar(0))
+  const b = tf.variable(tf.scalar(0))
+
+  // y = mx + b
+  const predict = x => tf.tidy(() => m.mul(x).add(b))
+  const loss = (predictions, labels) => predictions.sub(labels).square().mean()
+
+  const optimizer = tf.train.adam(100, 0.9, 0.99)
+
+  let time = window.performance.now()
+  console.log('before', m.dataSync()[0], b.dataSync()[0])
+  for (var i = 0; i < v.length * 100; i++) {
+    optimizer.minimize(() => {
+      const error = loss(
+        predict(tf.tensor1d(v.map(([y, x]) => x))),
+        tf.tensor1d(v.map(([y, x]) => y))
+      )
+      console.log('error', error.dataSync()[0])
+      return error
+    })
+  }
+  console.log('value', v)
+  console.log('time', window.performance.now() - time)
+  console.log('after', m.dataSync()[0], b.dataSync()[0])
+  console.groupEnd()
+})
+
