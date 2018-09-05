@@ -1,0 +1,45 @@
+--root {
+  --blue: #084C61;
+  /*--indigo: #6610f2;*/
+  /*--purple: #6f42c1;*/
+  /*--pink: #e83e8c;*/
+  --red: #DB504A;
+  /*--orange: #fd7e14;*/
+  --yellow: #E3B505;
+  /*--green: #28a745;*/
+  /*--teal: #20c997;*/
+  /*--cyan: #17a2b8;*/
+  /*--white: #fff;*/
+  --gray: #4F6D7A;
+  /*--gray-dark: #343a40;*/
+  /*--primary: #007bff;*/
+  /*--secondary: #6c757d;*/
+  /*--success: #28a745;*/
+  --info: #56A3A6;
+  /*--warning: #ffc107;*/
+  /*--danger: #dc3545;*/
+  /*--light: #f8f9fa;*/
+  /*--dark: #343a40;*/
+}
+
+body {
+  background-color: #B5D3E0;
+}
+
+h1 {
+  margin: 1rem 0;
+  letter-spacing: 1.6rem;
+  text-transform: uppercase;
+}
+
+.prices, .analytics {
+  height: 350px
+}
+
+.ct-series-a .ct-line {
+  stroke: var(--yellow);
+}
+
+.ct-series-a .ct-point {
+  stroke: var(--red);
+}

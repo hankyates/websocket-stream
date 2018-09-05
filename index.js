@@ -1,6 +1,7 @@
 let {
   get,
   pipe,
+  zip,
 } = _
 
 let {
@@ -37,7 +38,7 @@ let x$ = rxjs.interval().pipe(
   map(Date.now),
 )
 let createWindow = seconds => ([price, timestamp]) =>  (Date.now() - (seconds * 1000)) < timestamp
-let selectPrice = pipe(get('price'), parseFloat)
+let selectPriceFromStream = pipe(get('price'), parseFloat)
 let filterBy = seconds => ([price, timestamp]) => (Date.now() - (seconds * 1000)) < timestamp
 let filterByTen = _.filter(filterBy(10))
 let filterByThirty = _.filter(filterBy(30))
@@ -56,7 +57,7 @@ let trapezoidal = arr => arr.reduce((acc, val, i) => {
 
 let createStreamWindow = windowFilter => ws$.pipe(
   filter(v => v.type === 'ticker'),
-  map(selectPrice),
+  map(selectPriceFromStream),
   withLatestFrom(x$),
   scan((acc, val) => [
     ...windowFilter(acc),
@@ -67,55 +68,44 @@ let createStreamWindow = windowFilter => ws$.pipe(
 let tenSec$ = createStreamWindow(filterByTen)
 let thirtySec$ = createStreamWindow(filterByThirty)
 
-let integral$ = rxjs.zip(
+let app$ = rxjs.zip(
   tenSec$,
   thirtySec$,
-).pipe(
-  tap(console.log)
 )
 
-//integral$.subscribe(
-  //console.log,
-  //console.error,
-//)
+let mapPrice = _.map(([price, timestamp]) => price)
+let mapTimestamp = _.map(([price, timestamp]) => (Date.now() - timestamp) * 1000)
 
+let createChartData = (labels, series) => ({labels, series: [series]})
 
+let analyticsData = createChartData([], [])
+let pricesData = createChartData([], [])
+let anayliticsChart = new Chartist.Line('.analytics', analyticsData)
+let pricesChart = new Chartist.Line('.prices', pricesData)
 
-//rxjs.of([[100, 0], [100, 1], [101, 2]])
-//tenSec$
-thirtySec$
-.pipe(
-  throttleTime(1000),
-  map(v => v.map(
-    ([y, x]) => [y, x - v[0][1]]
-  ))
-)
-.subscribe((v) => {
-  console.group()
-  const m = tf.variable(tf.scalar(0))
-  const b = tf.variable(tf.scalar(0))
-
-  // y = mx + b
-  const predict = x => tf.tidy(() => m.mul(x).add(b))
-  const loss = (predictions, labels) => predictions.sub(labels).square().mean()
-
-  const optimizer = tf.train.adam(100, 0.9, 0.99)
-
-  let time = window.performance.now()
-  console.log('before', m.dataSync()[0], b.dataSync()[0])
-  for (var i = 0; i < v.length * 100; i++) {
-    optimizer.minimize(() => {
-      const error = loss(
-        predict(tf.tensor1d(v.map(([y, x]) => x))),
-        tf.tensor1d(v.map(([y, x]) => y))
+let trapezoidalValues = []
+app$
+.subscribe(
+  ([ten, thirty]) => {
+    pricesChart.update(
+      createChartData(
+        mapTimestamp(ten),
+        mapPrice(ten),
       )
-      console.log('error', error.dataSync()[0])
-      return error
-    })
+    )
+    trapezoidalValues = [...trapezoidalValues, trapezoidal(ten)]
+    anayliticsChart.update(
+      createChartData(
+        mapTimestamp(ten),
+        trapezoidalValues.slice(
+          trapezoidalValues.length - ten.length,
+          trapezoidalValues.length
+        ),
+      )
+    )
+  },
+  e => {
+    console.error()
+    debugger
   }
-  console.log('value', v)
-  console.log('time', window.performance.now() - time)
-  console.log('after', m.dataSync()[0], b.dataSync()[0])
-  console.groupEnd()
-})
-
+)
